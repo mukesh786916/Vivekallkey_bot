@@ -44,17 +44,17 @@ PRODUCTS = {
     "rage_cheat": {
         "name": "Rage Cheat",
         "emoji": "🟨",
-        "plans": {"1_day": {"name": "Rage Cheat 1 Day", "price": "250"}, "7_days": {"name": "Rage Cheat 7 Days", "price": "800"}}
+        "plans": {"1_day": {"name": "Rage Cheat 1 Day", "price": "150"}, "7_days": {"name": "Rage Cheat 7 Days", "price": "600"}}
     },
     "king_ios": {
         "name": "King iOS",
         "emoji": "🟧",
-        "plans": {"1_day": {"name": "King iOS 1 Day", "price": "300"}, "7_days": {"name": "King iOS 7 Days", "price": "1000"}}
+        "plans": {"1_day": {"name": "King iOS 1 Day", "price": "300"}, "7_days": {"name": "King iOS 7 Days", "price": "800"}}
     },
     "win_ios": {
         "name": "Win iOS",
         "emoji": "🩷",
-        "plans": {"1_day": {"name": "Win iOS 1 Day", "price": "150"}, "7_days": {"name": "Win iOS 7 Days", "price": "500"}}
+        "plans": {"1_day": {"name": "Win iOS 1 Day", "price": "200"}, "7_days": {"name": "Win iOS 7 Days", "price": "700"}}
     }
 }
 

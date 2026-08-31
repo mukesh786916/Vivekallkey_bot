@@ -1,10 +1,10 @@
-import os
+ import os
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# Dummy Web Server (Render के Port Error को रोकने के लिए)
+# Render के लिए पोर्ट स्कैन फ़िक्स (Dummy Server)
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -16,7 +16,6 @@ def run_dummy_server():
     server = HTTPServer(("0.0.0.0", port), SimpleHTTPRequestHandler)
     server.serve_forever()
 
-# बैकग्राउंड में सर्वर स्टार्ट करें
 threading.Thread(target=run_dummy_server, daemon=True).start()
 
 # टेलीग्राम बॉट कॉन्फ़िगरेशन
@@ -40,9 +39,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton(f"7 Days Key - {PRICES['7_days']}", callback_data='buy_7_days')]
     ]
     await update.message.reply_text(
-        "🔥 *BGMI Key Store* 🔥\n\nप्लांस चुनें:", 
+        "🔥 <b>BGMI Key Store</b> 🔥\n\nप्लांस चुनें:", 
         reply_markup=InlineKeyboardMarkup(keyboard), 
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -51,17 +50,24 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if query.data.startswith("buy_"):
         plan = query.data.replace("buy_", "")
-        text = f"🛒 *प्लान:* {plan.upper()}\n💰 *कीमत:* {PRICES[plan]}\n💳 *UPI:* `{UPI_ID}`\n\nपेमेंट करके नीचे बटन दबाएं:"
-        keyboard = [[InlineKeyboardButton("✅ Payment Done", callback_data=f"claim_{plan}")]]
-        await query.edit_message_text(text=text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        plan_name = "1 Day" if plan == "1_day" else "7 Days"
+        
+        text = (
+            f"🛒 <b>प्लान:</b> {plan_name}\n"
+            f"💰 <b>कीमत:</b> {PRICES[plan]}\n"
+            f"💳 <b>UPI ID:</b> <code>{UPI_ID}</code>\n\n"
+            f"👉 ऊपर दी गई UPI ID पर पेमेंट करें और पेमेंट पूरा होने के बाद नीचे <b>Done Payment</b> बटन दबाएं:"
+        )
+        keyboard = [[InlineKeyboardButton("✅ Done Payment", callback_data=f"claim_{plan}")]]
+        await query.edit_message_text(text=text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
         
     elif query.data.startswith("claim_"):
         plan = query.data.replace("claim_", "")
         if KEYS.get(plan) and len(KEYS[plan]) > 0:
             key = KEYS[plan].pop(0)
-            await query.edit_message_text(f"🎉 *आपकी Key:* `{key}`", parse_mode="Markdown")
+            await query.edit_message_text(f"🎉 <b>आपकी Key:</b> <code>{key}</code>", parse_mode="HTML")
         else:
-            await query.edit_message_text("❌ स्टॉक खत्म हो गया है! एडमिन से बात करें।")
+            await query.edit_message_text("❌ स्टॉक खत्म हो गया है! कृपया एडमिन से संपर्क करें।")
 
 def main():
     app = Application.builder().token(BOT_TOKEN).build()

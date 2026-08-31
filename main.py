@@ -9,8 +9,8 @@ KEYS = {
     "7_days": ["KEY-7DAY-WEEK999"]
 }
 
-PRICES = {"1_day": "₹150", "7_days": "₹700"}
-UPI_ID = "yourupiid@upi"  # यहाँ अपनी UPI ID डालें
+PRICES = {"1_day": "₹200", "7_days": "₹700"}
+UPI_ID = "vivektg700@ybl"  # यहाँ अपनी UPI ID डालें
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [

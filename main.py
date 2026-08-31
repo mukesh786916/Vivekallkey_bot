@@ -5,7 +5,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, BotCommand
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
-# Render के लिए डमी सर्वर
+# --- 24x7 Render डमी वेब सर्वर ---
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -19,57 +19,72 @@ def run_dummy_server():
 
 threading.Thread(target=run_dummy_server, daemon=True).start()
 
-# बॉट सेटिंग्स
+# --- बॉट सेटिंग्स ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-ADMIN_ID = 1187949807  # यहाँ आपकी टेलीग्राम आईडी है, जहाँ स्क्रीनशॉट आएँगे
+ADMIN_ID = 1187949807
 ADMIN_USERNAME = "@Loaded_VIVEKR"
 UPI_ID = "vivektg700@ybl"
 
 USERS = set()
 USER_KEYS = {}
-WAITING_FOR_SS = {}  # पेमेंट स्क्रीनशॉट का इंतज़ार करने वाले यूज़र्स की लिस्ट
+WAITING_FOR_SS = {}  # पेमेंट स्क्रीनशॉट का इंतज़ार करने वाले यूज़र्स
 
-# 5 प्रोडक्ट्स
+# --- 5 प्रोडक्ट्स और उनके रेट्स (आपकी सूची के अनुसार) ---
 PRODUCTS = {
     "vision": {
         "name": "Vision",
         "emoji": "🟩",
-        "plans": {"1_day": {"name": "Vision 1 Day", "price": "200"}, "7_days": {"name": "Vision 7 Days", "price": "700"}}
+        "plans": {
+            "1_day": {"name": "Vision 1 Day", "price": "200"},
+            "7_days": {"name": "Vision 7 Days", "price": "700"}
+        }
     },
     "lethal": {
         "name": "Lethal",
         "emoji": "🟥",
-        "plans": {"1_day": {"name": "Lethal 1 Day", "price": "200"}, "7_days": {"name": "Lethal 7 Days", "price": "700"}}
-    },
-    "rage_cheat": {
-        "name": "Rage Cheat",
-        "emoji": "🟨",
-        "plans": {"1_day": {"name": "Rage Cheat 1 Day", "price": "150"}, "7_days": {"name": "Rage Cheat 7 Days", "price": "600"}}
-    },
-    "king_ios": {
-        "name": "King iOS",
-        "emoji": "🟧",
-        "plans": {"1_day": {"name": "King iOS 1 Day", "price": "300"}, "7_days": {"name": "King iOS 7 Days", "price": "800"}}
+        "plans": {
+            "1_day": {"name": "Lethal 1 Day", "price": "200"},
+            "7_days": {"name": "Lethal 7 Days", "price": "700"}
+        }
     },
     "win_ios": {
         "name": "Win iOS",
         "emoji": "🩷",
-        "plans": {"1_day": {"name": "Win iOS 1 Day", "price": "200"}, "7_days": {"name": "Win iOS 7 Days", "price": "700"}}
+        "plans": {
+            "1_day": {"name": "Win iOS 1 Day", "price": "200"},
+            "7_days": {"name": "Win iOS 7 Days", "price": "700"}
+        }
+    },
+    "rage_cheat": {
+        "name": "Rage Cheat",
+        "emoji": "🟨",
+        "plans": {
+            "1_day": {"name": "Rage Cheat 1 Day", "price": "150"},
+            "7_days": {"name": "Rage Cheat 7 Days", "price": "600"}
+        }
+    },
+    "king_ios": {
+        "name": "King iOS",
+        "emoji": "🟧",
+        "plans": {
+            "1_day": {"name": "King iOS 1 Day", "price": "300"},
+            "7_days": {"name": "King iOS 7 Days", "price": "800"}
+        }
     }
 }
 
-# Key Stock
+# --- Key Stock (स्टॉक कीज) ---
 KEYS = {
     "vision_1_day": ["VIS-1D-1111", "VIS-1D-2222"],
     "vision_7_days": ["VIS-7D-9999"],
     "lethal_1_day": ["LET-1D-3333"],
     "lethal_7_days": ["LET-7D-8888"],
+    "win_ios_1_day": ["WIN-1D-0000"],
+    "win_ios_7_days": ["WIN-7D-1111"],
     "rage_cheat_1_day": ["RAG-1D-4444"],
     "rage_cheat_7_days": ["RAG-7D-7777"],
     "king_ios_1_day": ["KNG-1D-5555"],
-    "king_ios_7_days": ["KNG-7D-6666"],
-    "win_ios_1_day": ["WIN-1D-0000"],
-    "win_ios_7_days": ["WIN-7D-1111"]
+    "king_ios_7_days": ["KNG-7D-6666"]
 }
 
 MAIN_KEYBOARD = ReplyKeyboardMarkup(
@@ -101,9 +116,9 @@ async def show_product_menu(update: Update):
     keyboard = [
         [InlineKeyboardButton("🟩 Vision", callback_data='prod_vision')],
         [InlineKeyboardButton("🟥 Lethal", callback_data='prod_lethal')],
+        [InlineKeyboardButton("🩷 Win iOS", callback_data='prod_win_ios')],
         [InlineKeyboardButton("🟨 Rage Cheat", callback_data='prod_rage_cheat')],
-        [InlineKeyboardButton("🟧 King iOS", callback_data='prod_king_ios')],
-        [InlineKeyboardButton("🩷 Win iOS", callback_data='prod_win_ios')]
+        [InlineKeyboardButton("🟧 King iOS", callback_data='prod_king_ios')]
     ]
     text = "<b>Select a product to buy:</b>"
     if update.message:
@@ -135,20 +150,18 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "🌟 Status":
         await update.message.reply_text("🟢 <b>Server Status:</b> All Hacks are 100% Safe & Working!", parse_mode="HTML")
 
-# फोटो (स्क्रीनशॉट) हैंडलर
+# --- फोटो (स्क्रीनशॉट) वेरीफिकेशन हैंडलर ---
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if user_id in WAITING_FOR_SS:
         stock_key = WAITING_FOR_SS[user_id]["stock_key"]
         photo_file_id = update.message.photo[-1].file_id
 
-        # एडमिन के लिए अप्रूवल बटन
         keyboard = [
             [InlineKeyboardButton("✅ Approve & Send Key", callback_data=f"admin_approve_{user_id}_{stock_key}")],
             [InlineKeyboardButton("❌ Reject Payment", callback_data=f"admin_reject_{user_id}")]
         ]
         
-        # एडमिन को फोटो भेजना
         await context.bot.send_photo(
             chat_id=ADMIN_ID,
             photo=photo_file_id,
@@ -157,13 +170,8 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML"
         )
         
-        # यूजर को कन्फर्मेशन मैसेज
         await update.message.reply_text("✅ आपका पेमेंट स्क्रीनशॉट एडमिन को भेज दिया गया है।\n\n⏳ कृपया एडमिन के अप्रूवल का इंतज़ार करें। अप्रूव होते ही आपको Key मिल जाएगी।")
-        
-        # यूजर को वेटिंग लिस्ट से हटाना ताकि बार-बार फोटो न भेजे
         del WAITING_FOR_SS[user_id]
-    else:
-        pass # अगर नॉर्मल कोई फोटो भेजता है तो इग्नोर करें
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -224,10 +232,8 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.delete_message()
         await context.bot.send_message(chat_id=user_id, text="❌ Order Cancelled.")
 
-    # जब यूजर Done Payment पर क्लिक करता है
     elif data.startswith("claim_"):
         stock_key = data.replace("claim_", "")
-        # यूजर को वेटिंग लिस्ट में डालें
         WAITING_FOR_SS[user_id] = {"stock_key": stock_key}
         
         await query.edit_message_caption(
@@ -235,7 +241,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML"
         )
 
-    # जब एडमिन 'Approve' बटन दबाए
     elif data.startswith("admin_approve_"):
         if user_id != ADMIN_ID:
             await query.answer("You are not authorized!", show_alert=True)
@@ -251,7 +256,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 USER_KEYS[target_user_id] = []
             USER_KEYS[target_user_id].append(key)
             
-            # यूजर को Key भेजना
             try:
                 await context.bot.send_message(
                     chat_id=target_user_id, 
@@ -263,13 +267,8 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             await query.edit_message_caption(caption=f"✅ <b>Approved!</b>\nUser {target_user_id} को Key भेज दी गई है।", parse_mode="HTML")
         else:
-            await query.edit_message_caption(caption=f"❌ अप्रूव फेल! <b>{stock_key}</b> का स्टॉक खत्म हो गया है। पहले स्टॉक अपडेट करें।", parse_mode="HTML")
-            try:
-                await context.bot.send_message(chat_id=target_user_id, text="❌ आपका पेमेंट अप्रूव हो गया है, लेकिन स्टॉक खत्म हो गया है। कृपया एडमिन से संपर्क करें।")
-            except:
-                pass
+            await query.edit_message_caption(caption=f"❌ अप्रूव फेल! <b>{stock_key}</b> का स्टॉक खत्म हो गया है।", parse_mode="HTML")
 
-    # जब एडमिन 'Reject' बटन दबाए
     elif data.startswith("admin_reject_"):
         if user_id != ADMIN_ID:
             await query.answer("You are not authorized!", show_alert=True)
@@ -278,11 +277,10 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parts = data.split("_")
         target_user_id = int(parts[2])
 
-        # यूजर को मैसेज भेजना कि रिजेक्ट हो गया
         try:
             await context.bot.send_message(
                 chat_id=target_user_id, 
-                text="❌ <b>पेमेंट रिजेक्ट कर दिया गया है!</b>\n\nआपका पेमेंट स्क्रीनशॉट गलत है या वेरीफाई नहीं हुआ है। अगर कोई गलती है तो एडमिन से संपर्क करें।", 
+                text="❌ <b>पेमेंट रिजेक्ट कर दिया गया है!</b>\n\nआपका पेमेंट स्क्रीनशॉट गलत है। एडमिन से संपर्क करें: " + ADMIN_USERNAME, 
                 parse_mode="HTML"
             )
         except:
@@ -317,7 +315,6 @@ def main():
     app.add_handler(CommandHandler("status", lambda u, c: u.message.reply_text("🟢 <b>Server Status:</b> All Hacks are 100% Safe & Working!", parse_mode="HTML")))
     app.add_handler(CommandHandler("broadcast", broadcast))
     
-    # फोटो हैंडलर जोड़ा गया
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     app.add_handler(CallbackQueryHandler(button))

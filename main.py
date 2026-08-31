@@ -1,5 +1,6 @@
 import os
 import threading
+import urllib.parse
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, BotCommand
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
@@ -22,17 +23,48 @@ threading.Thread(target=run_dummy_server, daemon=True).start()
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 ADMIN_ID = 1187949807
 ADMIN_USERNAME = "@Loaded_VIVEKR"
+UPI_ID = "vivektg700@ybl"
 
 USERS = set()
 USER_KEYS = {}
 
-KEYS = {
-    "1_day": ["KEY-1DAY-ABC1234", "KEY-1DAY-XYZ5678"],
-    "7_days": ["KEY-7DAY-WEEK999"]
+# 5 हॉक प्रोडक्ट्स और उनके प्लांस
+PRODUCTS = {
+    "vision": {
+        "name": "Vision",
+        "plans": {"1_day": {"name": "Vision 1 Day", "price": "200"}, "7_days": {"name": "Vision 7 Days", "price": "700"}}
+    },
+    "lethal": {
+        "name": "Lethal",
+        "plans": {"1_day": {"name": "Lethal 1 Day", "price": "200"}, "7_days": {"name": "Lethal 7 Days", "price": "700"}}
+    },
+    "cheat_venus": {
+        "name": "Rage Cheat",
+        "plans": {"1_day": {"name": "Venus 1 Day", "price": "250"}, "7_days": {"name": "Venus 7 Days", "price": "800"}}
+    },
+    "king_ios": {
+        "name": "King iOS",
+        "plans": {"1_day": {"name": "King iOS 1 Day", "price": "300"}, "7_days": {"name": "King iOS 7 Days", "price": "1000"}}
+    },
+    "bgmi_vip": {
+        "name": "win ios",
+        "plans": {"1_day": {"name": "VIP 1 Day", "price": "150"}, "7_days": {"name": "VIP 7 Days", "price": "500"}}
+    }
 }
 
-PRICES = {"1_day": "₹200", "7_days": "₹700"}
-UPI_ID = "vivektg700@ybl"
+# Key Stock (आप यहाँ और Keys ऐड कर सकते हैं)
+KEYS = {
+    "vision_1_day": ["VIS-1D-1111", "VIS-1D-2222"],
+    "vision_7_days": ["VIS-7D-9999"],
+    "lethal_1_day": ["LET-1D-3333"],
+    "lethal_7_days": ["LET-7D-8888"],
+    "cheat_venus_1_day": ["VEN-1D-4444"],
+    "cheat_venus_7_days": ["VEN-7D-7777"],
+    "king_ios_1_day": ["KNG-1D-5555"],
+    "king_ios_7_days": ["KNG-7D-6666"],
+    "bgmi_vip_1_day": ["VIP-1D-0000"],
+    "bgmi_vip_7_days": ["VIP-7D-1111"]
+}
 
 MAIN_KEYBOARD = ReplyKeyboardMarkup(
     [
@@ -42,11 +74,11 @@ MAIN_KEYBOARD = ReplyKeyboardMarkup(
     resize_keyboard=True
 )
 
-# ब्लूटूथ/ब्लू मेन्यू (Bot Commands Menu) सेट करने का फ़ंक्शन
+# ब्लूटूथ/ब्लू मेन्यू (Bot Commands Menu)
 async def set_commands(application: Application):
     commands = [
         BotCommand("start", "Open bot menu"),
-        BotCommand("buy", "Buy licence"),
+        BotCommand("buy", "Select a product to buy"),
         BotCommand("mykeys", "Show my purchased keys"),
         BotCommand("reset", "Reset licence"),
         BotCommand("support", "Get support contact"),
@@ -57,15 +89,19 @@ async def set_commands(application: Application):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     USERS.add(user_id)
-    welcome_text = "👋 <b>Welcome to BGMI Key Store!</b>\n\nनीचे दिए गए मेन्यू बटन का उपयोग करें:"
+    welcome_text = "👋 <b>Welcome to BGMI Key Store!</b>\n\nUse /buy to view available licenses."
     await update.message.reply_text(welcome_text, reply_markup=MAIN_KEYBOARD, parse_mode="HTML")
 
-async def show_buy_menu(update: Update):
+# उत्पाद चुनने का मेन्यू (Product Selection)
+async def show_product_menu(update: Update):
     keyboard = [
-        [InlineKeyboardButton(f"1 Day Key - {PRICES['1_day']}", callback_data='buy_1_day')],
-        [InlineKeyboardButton(f"7 Days Key - {PRICES['7_days']}", callback_data='buy_7_days')]
+        [InlineKeyboardButton("🎁 Vision", callback_data='prod_vision')],
+        [InlineKeyboardButton("🎁 Lethal", callback_data='prod_lethal')],
+        [InlineKeyboardButton("🎁 Cheat Venus", callback_data='prod_cheat_venus')],
+        [InlineKeyboardButton("🎁 King iOS", callback_data='prod_king_ios')],
+        [InlineKeyboardButton("🎁 BGMI VIP", callback_data='prod_bgmi_vip')]
     ]
-    text = "🔥 <b>BGMI Key Store</b> 🔥\n\nप्लांस चुनें:"
+    text = "<b>Select a product to buy:</b>"
     if update.message:
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
     else:
@@ -77,7 +113,7 @@ async def show_my_keys(update: Update, user_id: int):
         key_list = "\n".join([f"• <code>{k}</code>" for k in keys])
         await update.message.reply_text(f"🔑 <b>आपकी खरीदे गए Keys:</b>\n\n{key_list}", parse_mode="HTML")
     else:
-        await update.message.reply_text("❌ आपने अभी तक कोई Key नहीं खरीदी है।")
+        await update.message.reply_text("No licenses found yet.", parse_mode="HTML")
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
@@ -85,7 +121,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     USERS.add(user_id)
 
     if text == "🛍 Buy Licence":
-        await show_buy_menu(update)
+        await show_product_menu(update)
     elif text == "🔑 My Licences":
         await show_my_keys(update, user_id)
     elif text == "🔄 Reset Licence":
@@ -93,37 +129,84 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "📞 Support":
         await update.message.reply_text(f"📞 <b>Support:</b> सहायता के लिए एडमिन से संपर्क करें:\n{ADMIN_USERNAME}", parse_mode="HTML")
     elif text == "🌟 Status":
-        await update.message.reply_text("🟢 <b>Server Status:</b> BGMI Hack is 100% Safe & Working!", parse_mode="HTML")
+        await update.message.reply_text("🟢 <b>Server Status:</b> All Hacks are 100% Safe & Working!", parse_mode="HTML")
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
-    
-    if query.data.startswith("buy_"):
-        plan = query.data.replace("buy_", "")
-        plan_name = "1 Day" if plan == "1_day" else "7 Days"
-        text = (
-            f"🛒 <b>प्लान:</b> {plan_name}\n"
-            f"💰 <b>कीमत:</b> {PRICES[plan]}\n"
-            f"💳 <b>UPI ID:</b> <code>{UPI_ID}</code>\n\n"
-            f"👉 ऊपर दी गई UPI ID पर पेमेंट करें और पेमेंट पूरा होने के बाद नीचे <b>Done Payment</b> बटन दबाएं:"
-        )
-        keyboard = [[InlineKeyboardButton("✅ Done Payment", callback_data=f"claim_{plan}")]]
-        await query.edit_message_text(text=text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+    data = query.data
+
+    # जब यूजर कोई प्रोडक्ट चुनता है (उदा: Vision, Lethal आदि)
+    if data.startswith("prod_"):
+        prod_key = data.replace("prod_", "")
+        prod = PRODUCTS.get(prod_key)
+        keyboard = []
+        for p_key, p_val in prod["plans"].items():
+            keyboard.append([InlineKeyboardButton(f"{p_val['name']} - ₹{p_val['price']}", callback_data=f"buy_{prod_key}_{p_key}")])
+        keyboard.append([InlineKeyboardButton("🔙 Back", callback_data="main_buy_menu")])
+        await query.edit_message_text(f"✨ <b>{prod['name']} Plans</b> ✨\n\nप्लांस चुनें:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+
+    elif data == "main_buy_menu":
+        await show_product_menu(update)
+
+    # जब यूजर प्लान चुनता है (उदा: Vision 1 Day) -> QR Code जेनरेट होगा
+    elif data.startswith("buy_"):
+        parts = data.split("_")
+        prod_key = "_".join(parts[1:-2]) if len(parts) > 3 else parts[1]
+        plan_key = "_".join(parts[-2:])
         
-    elif query.data.startswith("claim_"):
-        plan = query.data.replace("claim_", "")
-        if KEYS.get(plan) and len(KEYS[plan]) > 0:
-            key = KEYS[plan].pop(0)
+        prod = PRODUCTS.get(prod_key)
+        plan_info = prod["plans"].get(plan_key)
+        amount = plan_info["price"]
+        item_name = plan_info["name"]
+        
+        # रैंडम ऑर्डर आईडी (उदा: E7AYSK)
+        order_id = os.urandom(3).hex().upper()
+        
+        # ऑटोमैटिक QR Code URL
+        upi_url = f"upi://pay?pa={UPI_ID}&pn=VisionShop&am={amount}&cu=INR"
+        qr_image_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={urllib.parse.quote(upi_url)}"
+
+        caption_text = (
+            f"✨ <b>{item_name}</b> ✨\n"
+            f"📦 <b>Order:</b> <code>{order_id}</code>\n"
+            f"💰 <b>Amount:</b> {amount}₹\n"
+            f"⏳ Waiting for payment ⏳\n\n"
+            f"💳 <b>UPI ID:</b> <code>{UPI_ID}</code>"
+        )
+        
+        keyboard = [
+            [InlineKeyboardButton("✅ Done Payment", callback_data=f"claim_{prod_key}_{plan_key}")],
+            [InlineKeyboardButton("❌ Cancel", callback_data="cancel_order")]
+        ]
+
+        await query.delete_message()
+        await context.bot.send_photo(
+            chat_id=user_id,
+            photo=qr_image_url,
+            caption=caption_text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+
+    elif data == "cancel_order":
+        await query.delete_message()
+        await context.bot.send_message(chat_id=user_id, text="❌ Order Cancelled.")
+
+    # पेमेंट होने पर Key देने के लिए
+    elif data.startswith("claim_"):
+        stock_key = data.replace("claim_", "")
+        if KEYS.get(stock_key) and len(KEYS[stock_key]) > 0:
+            key = KEYS[stock_key].pop(0)
             if user_id not in USER_KEYS:
                 USER_KEYS[user_id] = []
             USER_KEYS[user_id].append(key)
-            await query.edit_message_text(f"🎉 <b>आपकी Key:</b> <code>{key}</code>\n\n(यह Key आपके 'My Licences' सेक्शन में भी सेव हो गई है)", parse_mode="HTML")
+            await query.edit_message_caption(caption=f"🎉 <b>आपकी Key:</b> <code>{key}</code>\n\n(यह Key आपके 'My Licences' में सेव हो गई है)", parse_mode="HTML")
         else:
-            await query.edit_message_text(f"❌ स्टॉक खत्म हो गया है! कृपया एडमिन से संपर्क करें: {ADMIN_USERNAME}")
+            await query.edit_message_caption(caption=f"❌ स्टॉक खत्म हो गया है! एडमिन से संपर्क करें: {ADMIN_USERNAME}", parse_mode="HTML")
 
-# ब्रॉडकास्ट कमांड
+# ब्रॉडकास्ट कमांड (एडमिन के लिए)
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
@@ -144,11 +227,11 @@ def main():
     app = Application.builder().token(BOT_TOKEN).post_init(set_commands).build()
     
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("buy", lambda u, c: show_buy_menu(u)))
+    app.add_handler(CommandHandler("buy", lambda u, c: show_product_menu(u)))
     app.add_handler(CommandHandler("mykeys", lambda u, c: show_my_keys(u, u.effective_user.id)))
     app.add_handler(CommandHandler("reset", lambda u, c: u.message.reply_text(f"🔄 <b>Key Reset:</b> एडमिन से संपर्क करें: {ADMIN_USERNAME}", parse_mode="HTML")))
     app.add_handler(CommandHandler("support", lambda u, c: u.message.reply_text(f"📞 <b>Support:</b> एडमिन से संपर्क करें:\n{ADMIN_USERNAME}", parse_mode="HTML")))
-    app.add_handler(CommandHandler("status", lambda u, c: u.message.reply_text("🟢 <b>Server Status:</b> BGMI Hack is 100% Safe & Working!", parse_mode="HTML")))
+    app.add_handler(CommandHandler("status", lambda u, c: u.message.reply_text("🟢 <b>Server Status:</b> All Hacks are 100% Safe & Working!", parse_mode="HTML")))
     app.add_handler(CommandHandler("broadcast", broadcast))
     
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))

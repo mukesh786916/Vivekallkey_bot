@@ -5,7 +5,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, BotCommand
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
-# Render के लिए पोर्ट स्कैन फ़िक्स (Dummy Server)
+# Render के लिए डमी सर्वर
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -19,7 +19,7 @@ def run_dummy_server():
 
 threading.Thread(target=run_dummy_server, daemon=True).start()
 
-# आपकी बॉट डिटेल्स
+# बॉट सेटिंग्स
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 ADMIN_ID = 1187949807
 ADMIN_USERNAME = "@Loaded_VIVEKR"
@@ -28,42 +28,47 @@ UPI_ID = "vivektg700@ybl"
 USERS = set()
 USER_KEYS = {}
 
-# 5 हॉक प्रोडक्ट्स और उनके प्लांस
+# 5 प्रोडक्ट्स (आपके पसंदीदा नाम और कलर्स के अनुसार)
 PRODUCTS = {
     "vision": {
         "name": "Vision",
+        "emoji": "🟩",
         "plans": {"1_day": {"name": "Vision 1 Day", "price": "200"}, "7_days": {"name": "Vision 7 Days", "price": "700"}}
     },
     "lethal": {
         "name": "Lethal",
+        "emoji": "🟥",
         "plans": {"1_day": {"name": "Lethal 1 Day", "price": "200"}, "7_days": {"name": "Lethal 7 Days", "price": "700"}}
     },
-    "cheat_venus": {
+    "rage_cheat": {
         "name": "Rage Cheat",
-        "plans": {"1_day": {"name": "Venus 1 Day", "price": "250"}, "7_days": {"name": "Venus 7 Days", "price": "800"}}
+        "emoji": "🟨",
+        "plans": {"1_day": {"name": "Rage Cheat 1 Day", "price": "250"}, "7_days": {"name": "Rage Cheat 7 Days", "price": "800"}}
     },
     "king_ios": {
         "name": "King iOS",
+        "emoji": "🟧",
         "plans": {"1_day": {"name": "King iOS 1 Day", "price": "300"}, "7_days": {"name": "King iOS 7 Days", "price": "1000"}}
     },
-    "bgmi_vip": {
-        "name": "win ios",
-        "plans": {"1_day": {"name": "VIP 1 Day", "price": "150"}, "7_days": {"name": "VIP 7 Days", "price": "500"}}
+    "win_ios": {
+        "name": "Win iOS",
+        "emoji": "🩷",
+        "plans": {"1_day": {"name": "Win iOS 1 Day", "price": "150"}, "7_days": {"name": "Win iOS 7 Days", "price": "500"}}
     }
 }
 
-# Key Stock (आप यहाँ और Keys ऐड कर सकते हैं)
+# Key Stock
 KEYS = {
     "vision_1_day": ["VIS-1D-1111", "VIS-1D-2222"],
     "vision_7_days": ["VIS-7D-9999"],
     "lethal_1_day": ["LET-1D-3333"],
     "lethal_7_days": ["LET-7D-8888"],
-    "cheat_venus_1_day": ["VEN-1D-4444"],
-    "cheat_venus_7_days": ["VEN-7D-7777"],
+    "rage_cheat_1_day": ["RAG-1D-4444"],
+    "rage_cheat_7_days": ["RAG-7D-7777"],
     "king_ios_1_day": ["KNG-1D-5555"],
     "king_ios_7_days": ["KNG-7D-6666"],
-    "bgmi_vip_1_day": ["VIP-1D-0000"],
-    "bgmi_vip_7_days": ["VIP-7D-1111"]
+    "win_ios_1_day": ["WIN-1D-0000"],
+    "win_ios_7_days": ["WIN-7D-1111"]
 }
 
 MAIN_KEYBOARD = ReplyKeyboardMarkup(
@@ -74,7 +79,6 @@ MAIN_KEYBOARD = ReplyKeyboardMarkup(
     resize_keyboard=True
 )
 
-# ब्लूटूथ/ब्लू मेन्यू (Bot Commands Menu)
 async def set_commands(application: Application):
     commands = [
         BotCommand("start", "Open bot menu"),
@@ -92,14 +96,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = "👋 <b>Welcome to BGMI Key Store!</b>\n\nUse /buy to view available licenses."
     await update.message.reply_text(welcome_text, reply_markup=MAIN_KEYBOARD, parse_mode="HTML")
 
-# उत्पाद चुनने का मेन्यू (Product Selection)
 async def show_product_menu(update: Update):
     keyboard = [
-        [InlineKeyboardButton("🎁 Vision", callback_data='prod_vision')],
-        [InlineKeyboardButton("🎁 Lethal", callback_data='prod_lethal')],
-        [InlineKeyboardButton("🎁 Cheat Venus", callback_data='prod_cheat_venus')],
-        [InlineKeyboardButton("🎁 King iOS", callback_data='prod_king_ios')],
-        [InlineKeyboardButton("🎁 BGMI VIP", callback_data='prod_bgmi_vip')]
+        [InlineKeyboardButton("🟩 Vision", callback_data='prod_vision')],
+        [InlineKeyboardButton("🟥 Lethal", callback_data='prod_lethal')],
+        [InlineKeyboardButton("🟨 Rage Cheat", callback_data='prod_rage_cheat')],
+        [InlineKeyboardButton("🟧 King iOS", callback_data='prod_king_ios')],
+        [InlineKeyboardButton("🩷 Win iOS", callback_data='prod_win_ios')]
     ]
     text = "<b>Select a product to buy:</b>"
     if update.message:
@@ -125,9 +128,9 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "🔑 My Licences":
         await show_my_keys(update, user_id)
     elif text == "🔄 Reset Licence":
-        await update.message.reply_text(f"🔄 <b>Key Reset:</b> अगर आपकी Key डिवाइस से अनलॉक करनी है तो एडमिन से संपर्क करें: {ADMIN_USERNAME}", parse_mode="HTML")
+        await update.message.reply_text(f"🔄 <b>Key Reset:</b> एडमिन से संपर्क करें: {ADMIN_USERNAME}", parse_mode="HTML")
     elif text == "📞 Support":
-        await update.message.reply_text(f"📞 <b>Support:</b> सहायता के लिए एडमिन से संपर्क करें:\n{ADMIN_USERNAME}", parse_mode="HTML")
+        await update.message.reply_text(f"📞 <b>Support:</b> एडमिन से संपर्क करें:\n{ADMIN_USERNAME}", parse_mode="HTML")
     elif text == "🌟 Status":
         await update.message.reply_text("🟢 <b>Server Status:</b> All Hacks are 100% Safe & Working!", parse_mode="HTML")
 
@@ -137,20 +140,18 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     data = query.data
 
-    # जब यूजर कोई प्रोडक्ट चुनता है (उदा: Vision, Lethal आदि)
     if data.startswith("prod_"):
         prod_key = data.replace("prod_", "")
         prod = PRODUCTS.get(prod_key)
         keyboard = []
         for p_key, p_val in prod["plans"].items():
-            keyboard.append([InlineKeyboardButton(f"{p_val['name']} - ₹{p_val['price']}", callback_data=f"buy_{prod_key}_{p_key}")])
-        keyboard.append([InlineKeyboardButton("🔙 Back", callback_data="main_buy_menu")])
-        await query.edit_message_text(f"✨ <b>{prod['name']} Plans</b> ✨\n\nप्लांस चुनें:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+            keyboard.append([InlineKeyboardButton(f"{prod['emoji']} {p_val['name']} - ₹{p_val['price']}", callback_data=f"buy_{prod_key}_{p_key}")])
+        keyboard.append([InlineKeyboardButton("« Back", callback_data="main_buy_menu")])
+        await query.edit_message_text(f"✨ <b>{prod['emoji']} {prod['name']} Plans</b> ✨\n\nप्लांस चुनें:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
     elif data == "main_buy_menu":
         await show_product_menu(update)
 
-    # जब यूजर प्लान चुनता है (उदा: Vision 1 Day) -> QR Code जेनरेट होगा
     elif data.startswith("buy_"):
         parts = data.split("_")
         prod_key = "_".join(parts[1:-2]) if len(parts) > 3 else parts[1]
@@ -161,10 +162,8 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         amount = plan_info["price"]
         item_name = plan_info["name"]
         
-        # रैंडम ऑर्डर आईडी (उदा: E7AYSK)
         order_id = os.urandom(3).hex().upper()
         
-        # ऑटोमैटिक QR Code URL
         upi_url = f"upi://pay?pa={UPI_ID}&pn=VisionShop&am={amount}&cu=INR"
         qr_image_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={urllib.parse.quote(upi_url)}"
 
@@ -194,7 +193,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.delete_message()
         await context.bot.send_message(chat_id=user_id, text="❌ Order Cancelled.")
 
-    # पेमेंट होने पर Key देने के लिए
     elif data.startswith("claim_"):
         stock_key = data.replace("claim_", "")
         if KEYS.get(stock_key) and len(KEYS[stock_key]) > 0:
@@ -206,7 +204,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.edit_message_caption(caption=f"❌ स्टॉक खत्म हो गया है! एडमिन से संपर्क करें: {ADMIN_USERNAME}", parse_mode="HTML")
 
-# ब्रॉडकास्ट कमांड (एडमिन के लिए)
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return

@@ -1,10 +1,9 @@
- import os
+import os
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# Render के लिए पोर्ट स्कैन फ़िक्स (Dummy Server)
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -18,19 +17,14 @@ def run_dummy_server():
 
 threading.Thread(target=run_dummy_server, daemon=True).start()
 
-# टेलीग्राम बॉट कॉन्फ़िगरेशन
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
-# BGMI Keys स्टॉक
 KEYS = {
     "1_day": ["KEY-1DAY-ABC1234", "KEY-1DAY-XYZ5678"],
     "7_days": ["KEY-7DAY-WEEK999"]
 }
 
-# प्लांस की कीमतें
 PRICES = {"1_day": "₹200", "7_days": "₹700"}
-
-# आपकी UPI ID
 UPI_ID = "vivektg700@ybl"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -77,4 +71,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
+ 

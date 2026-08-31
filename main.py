@@ -1,15 +1,169 @@
 import os
-import requests # API कॉल के लिए
+import threading
 import urllib.parse
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, BotCommand
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-# यहाँ आपको अपने UPI Gateway की API KEY डालनी होगी (उदा. UPIGateway.com से)
-UPI_GATEWAY_API_KEY = "rzp_test_TWQXloR3nXr2kd" 
+# Render के लिए डमी सर्वर
+class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is Running Alive!")
 
-# (बाकी PRODUCTS, KEYS, MAIN_KEYBOARD पुराने कोड जैसा ही रहेगा...)
-# ...
+def run_dummy_server():
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(("0.0.0.0", port), SimpleHTTPRequestHandler)
+    server.serve_forever()
+
+threading.Thread(target=run_dummy_server, daemon=True).start()
+
+# बॉट सेटिंग्स
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+ADMIN_ID = 1187949807  # यहाँ आपकी टेलीग्राम आईडी है, जहाँ स्क्रीनशॉट आएँगे
+ADMIN_USERNAME = "@Loaded_VIVEKR"
+UPI_ID = "vivektg700@ybl"
+
+USERS = set()
+USER_KEYS = {}
+WAITING_FOR_SS = {}  # पेमेंट स्क्रीनशॉट का इंतज़ार करने वाले यूज़र्स की लिस्ट
+
+# 5 प्रोडक्ट्स
+PRODUCTS = {
+    "vision": {
+        "name": "Vision",
+        "emoji": "🟩",
+        "plans": {"1_day": {"name": "Vision 1 Day", "price": "200"}, "7_days": {"name": "Vision 7 Days", "price": "700"}}
+    },
+    "lethal": {
+        "name": "Lethal",
+        "emoji": "🟥",
+        "plans": {"1_day": {"name": "Lethal 1 Day", "price": "200"}, "7_days": {"name": "Lethal 7 Days", "price": "700"}}
+    },
+    "rage_cheat": {
+        "name": "Rage Cheat",
+        "emoji": "🟨",
+        "plans": {"1_day": {"name": "Rage Cheat 1 Day", "price": "250"}, "7_days": {"name": "Rage Cheat 7 Days", "price": "800"}}
+    },
+    "king_ios": {
+        "name": "King iOS",
+        "emoji": "🟧",
+        "plans": {"1_day": {"name": "King iOS 1 Day", "price": "300"}, "7_days": {"name": "King iOS 7 Days", "price": "1000"}}
+    },
+    "win_ios": {
+        "name": "Win iOS",
+        "emoji": "🩷",
+        "plans": {"1_day": {"name": "Win iOS 1 Day", "price": "150"}, "7_days": {"name": "Win iOS 7 Days", "price": "500"}}
+    }
+}
+
+# Key Stock
+KEYS = {
+    "vision_1_day": ["VIS-1D-1111", "VIS-1D-2222"],
+    "vision_7_days": ["VIS-7D-9999"],
+    "lethal_1_day": ["LET-1D-3333"],
+    "lethal_7_days": ["LET-7D-8888"],
+    "rage_cheat_1_day": ["RAG-1D-4444"],
+    "rage_cheat_7_days": ["RAG-7D-7777"],
+    "king_ios_1_day": ["KNG-1D-5555"],
+    "king_ios_7_days": ["KNG-7D-6666"],
+    "win_ios_1_day": ["WIN-1D-0000"],
+    "win_ios_7_days": ["WIN-7D-1111"]
+}
+
+MAIN_KEYBOARD = ReplyKeyboardMarkup(
+    [
+        ["🛍 Buy Licence", "🔑 My Licences"],
+        ["🔄 Reset Licence", "📞 Support", "🌟 Status"]
+    ],
+    resize_keyboard=True
+)
+
+async def set_commands(application: Application):
+    commands = [
+        BotCommand("start", "Open bot menu"),
+        BotCommand("buy", "Select a product to buy"),
+        BotCommand("mykeys", "Show my purchased keys"),
+        BotCommand("reset", "Reset licence"),
+        BotCommand("support", "Get support contact"),
+        BotCommand("status", "Check server status")
+    ]
+    await application.bot.set_my_commands(commands)
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    USERS.add(user_id)
+    welcome_text = "👋 <b>Welcome to BGMI Key Store!</b>\n\nUse /buy to view available licenses."
+    await update.message.reply_text(welcome_text, reply_markup=MAIN_KEYBOARD, parse_mode="HTML")
+
+async def show_product_menu(update: Update):
+    keyboard = [
+        [InlineKeyboardButton("🟩 Vision", callback_data='prod_vision')],
+        [InlineKeyboardButton("🟥 Lethal", callback_data='prod_lethal')],
+        [InlineKeyboardButton("🟨 Rage Cheat", callback_data='prod_rage_cheat')],
+        [InlineKeyboardButton("🟧 King iOS", callback_data='prod_king_ios')],
+        [InlineKeyboardButton("🩷 Win iOS", callback_data='prod_win_ios')]
+    ]
+    text = "<b>Select a product to buy:</b>"
+    if update.message:
+        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+    else:
+        await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+
+async def show_my_keys(update: Update, user_id: int):
+    keys = USER_KEYS.get(user_id, [])
+    if keys:
+        key_list = "\n".join([f"• <code>{k}</code>" for k in keys])
+        await update.message.reply_text(f"🔑 <b>आपकी खरीदे गए Keys:</b>\n\n{key_list}", parse_mode="HTML")
+    else:
+        await update.message.reply_text("No licenses found yet.", parse_mode="HTML")
+
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    user_id = update.effective_user.id
+    USERS.add(user_id)
+
+    if text == "🛍 Buy Licence":
+        await show_product_menu(update)
+    elif text == "🔑 My Licences":
+        await show_my_keys(update, user_id)
+    elif text == "🔄 Reset Licence":
+        await update.message.reply_text(f"🔄 <b>Key Reset:</b> एडमिन से संपर्क करें: {ADMIN_USERNAME}", parse_mode="HTML")
+    elif text == "📞 Support":
+        await update.message.reply_text(f"📞 <b>Support:</b> एडमिन से संपर्क करें:\n{ADMIN_USERNAME}", parse_mode="HTML")
+    elif text == "🌟 Status":
+        await update.message.reply_text("🟢 <b>Server Status:</b> All Hacks are 100% Safe & Working!", parse_mode="HTML")
+
+# फोटो (स्क्रीनशॉट) हैंडलर
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id in WAITING_FOR_SS:
+        stock_key = WAITING_FOR_SS[user_id]["stock_key"]
+        photo_file_id = update.message.photo[-1].file_id
+
+        # एडमिन के लिए अप्रूवल बटन
+        keyboard = [
+            [InlineKeyboardButton("✅ Approve & Send Key", callback_data=f"admin_approve_{user_id}_{stock_key}")],
+            [InlineKeyboardButton("❌ Reject Payment", callback_data=f"admin_reject_{user_id}")]
+        ]
+        
+        # एडमिन को फोटो भेजना
+        await context.bot.send_photo(
+            chat_id=ADMIN_ID,
+            photo=photo_file_id,
+            caption=f"🔔 <b>New Payment Verification!</b>\n\n👤 User ID: <code>{user_id}</code>\n📦 Product: <b>{stock_key}</b>\n\nकृपया बैंक में चेक करके Approve/Reject करें।",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+        
+        # यूजर को कन्फर्मेशन मैसेज
+        await update.message.reply_text("✅ आपका पेमेंट स्क्रीनशॉट एडमिन को भेज दिया गया है।\n\n⏳ कृपया एडमिन के अप्रूवल का इंतज़ार करें। अप्रूव होते ही आपको Key मिल जाएगी।")
+        
+        # यूजर को वेटिंग लिस्ट से हटाना ताकि बार-बार फोटो न भेजे
+        del WAITING_FOR_SS[user_id]
+    else:
+        pass # अगर नॉर्मल कोई फोटो भेजता है तो इग्नोर करें
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -17,7 +171,19 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     data = query.data
 
-    if data.startswith("buy_"):
+    if data.startswith("prod_"):
+        prod_key = data.replace("prod_", "")
+        prod = PRODUCTS.get(prod_key)
+        keyboard = []
+        for p_key, p_val in prod["plans"].items():
+            keyboard.append([InlineKeyboardButton(f"{prod['emoji']} {p_val['name']} - ₹{p_val['price']}", callback_data=f"buy_{prod_key}_{p_key}")])
+        keyboard.append([InlineKeyboardButton("« Back", callback_data="main_buy_menu")])
+        await query.edit_message_text(f"✨ <b>{prod['emoji']} {prod['name']} Plans</b> ✨\n\nप्लांस चुनें:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+
+    elif data == "main_buy_menu":
+        await show_product_menu(update)
+
+    elif data.startswith("buy_"):
         parts = data.split("_")
         prod_key = "_".join(parts[1:-2]) if len(parts) > 3 else parts[1]
         plan_key = "_".join(parts[-2:])
@@ -27,24 +193,21 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         amount = plan_info["price"]
         item_name = plan_info["name"]
         
-        # यूनीक आर्डर आईडी (यही सर्वर से वेरीफाई होगी)
-        order_id = f"ORDER_{user_id}_{os.urandom(3).hex().upper()}"
+        order_id = os.urandom(3).hex().upper()
         
-        # ⚠️ यहाँ पर Payment Gateway की API को कॉल करके असली लिंक जनरेट किया जाता है
-        # यह सिर्फ एक उदाहरण है:
-        upi_url = f"upi://pay?pa=vivektg700@ybl&pn=VisionShop&tr={order_id}&am={amount}&cu=INR"
+        upi_url = f"upi://pay?pa={UPI_ID}&pn=VisionShop&am={amount}&cu=INR"
         qr_image_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={urllib.parse.quote(upi_url)}"
 
         caption_text = (
             f"✨ <b>{item_name}</b> ✨\n"
-            f"📦 <b>Order ID:</b> <code>{order_id}</code>\n"
-            f"💰 <b>Amount:</b> ₹{amount}\n\n"
-            f"⚠️ <b>ध्यान दें:</b> पेमेंट करने के बाद 'Check Payment' बटन पर क्लिक करें। बॉट ऑटोमैटिक वेरीफाई करके Key दे देगा।"
+            f"📦 <b>Order:</b> <code>{order_id}</code>\n"
+            f"💰 <b>Amount:</b> {amount}₹\n"
+            f"⏳ Waiting for payment ⏳\n\n"
+            f"💳 <b>UPI ID:</b> <code>{UPI_ID}</code>"
         )
         
-        # अब स्क्रीनशॉट नहीं मांगेंगे, सीधा सर्वर से चेक करेंगे
         keyboard = [
-            [InlineKeyboardButton("🔄 Check Payment Status", callback_data=f"verify_{order_id}_{prod_key}_{plan_key}")],
+            [InlineKeyboardButton("✅ Done Payment", callback_data=f"claim_{prod_key}_{plan_key}")],
             [InlineKeyboardButton("❌ Cancel", callback_data="cancel_order")]
         ]
 
@@ -57,39 +220,110 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML"
         )
 
-    # ऑटोमैटिक वेरिफिकेशन सिस्टम
-    elif data.startswith("verify_"):
-        parts = data.split("_")
-        order_id = parts[1]
-        stock_key = "_".join(parts[2:])
+    elif data == "cancel_order":
+        await query.delete_message()
+        await context.bot.send_message(chat_id=user_id, text="❌ Order Cancelled.")
 
-        # ⚠️ यहाँ असली जादू होता है: बॉट Payment Gateway के सर्वर से पूछेगा कि पैसा आया या नहीं
-        # नीचे दिया गया URL आपके Gateway Provider पर निर्भर करेगा
-        check_api_url = f"https://api.yourgateway.com/check_status?order_id={order_id}"
+    # जब यूजर Done Payment पर क्लिक करता है
+    elif data.startswith("claim_"):
+        stock_key = data.replace("claim_", "")
+        # यूजर को वेटिंग लिस्ट में डालें
+        WAITING_FOR_SS[user_id] = {"stock_key": stock_key}
         
-        try:
-            # सर्वर से पेमेंट का स्टेटस चेक करना
-            # response = requests.get(check_api_url, headers={"Authorization": UPI_GATEWAY_API_KEY})
-            # result = response.json()
-            
-            # मान लेते हैं अभी टेस्टिंग के लिए पेमेंट 'FAILED' है (क्योंकि असली API नहीं लगी है)
-            payment_status = "FAILED" # अगर असली API लगेगी तो यह "SUCCESS" हो जाएगा
-            
-            if payment_status == "SUCCESS":
-                # पैसा आ गया, अब ऑटोमैटिक Key दे दो
-                if KEYS.get(stock_key) and len(KEYS[stock_key]) > 0:
-                    key = KEYS[stock_key].pop(0)
-                    await query.edit_message_caption(
-                        caption=f"✅ <b>पेमेंट वेरीफाइड!</b>\n\n🎉 <b>आपकी Key:</b> <code>{key}</code>\n\n(Enjoy!)", 
-                        parse_mode="HTML"
-                    )
-                else:
-                    await query.edit_message_caption(caption="✅ पेमेंट मिल गया, लेकिन स्टॉक खत्म है! एडमिन से संपर्क करें।")
-            else:
-                # फेक या पेंडिंग पेमेंट
-                await query.answer("❌ पेमेंट अभी तक प्राप्त नहीं हुआ है! कृपया पेमेंट करने के बाद ट्राई करें।", show_alert=True)
-                
-        except Exception as e:
-            await query.answer("सर्वर में कुछ दिक्कत है, बाद में प्रयास करें।", show_alert=True)
+        await query.edit_message_caption(
+            caption="📸 <b>कृपया अपने सफल पेमेंट का Screenshot यहाँ भेजें!</b>\n\n(फोटो गैलरी से सेलेक्ट करके सेंड करें)", 
+            parse_mode="HTML"
+        )
 
-# (main function पुराने जैसा ही रहेगा)
+    # जब एडमिन 'Approve' बटन दबाए
+    elif data.startswith("admin_approve_"):
+        if user_id != ADMIN_ID:
+            await query.answer("You are not authorized!", show_alert=True)
+            return
+        
+        parts = data.split("_")
+        target_user_id = int(parts[2])
+        stock_key = "_".join(parts[3:])
+
+        if KEYS.get(stock_key) and len(KEYS[stock_key]) > 0:
+            key = KEYS[stock_key].pop(0)
+            if target_user_id not in USER_KEYS:
+                USER_KEYS[target_user_id] = []
+            USER_KEYS[target_user_id].append(key)
+            
+            # यूजर को Key भेजना
+            try:
+                await context.bot.send_message(
+                    chat_id=target_user_id, 
+                    text=f"🎉 <b>पेमेंट सफल! एडमिन द्वारा अप्रूव्ड।</b>\n\nयहाँ आपकी Key है: <code>{key}</code>\n\n(यह Key आपके 'My Licences' में सेव हो गई है)", 
+                    parse_mode="HTML"
+                )
+            except:
+                pass
+
+            await query.edit_message_caption(caption=f"✅ <b>Approved!</b>\nUser {target_user_id} को Key भेज दी गई है।", parse_mode="HTML")
+        else:
+            await query.edit_message_caption(caption=f"❌ अप्रूव फेल! <b>{stock_key}</b> का स्टॉक खत्म हो गया है। पहले स्टॉक अपडेट करें।", parse_mode="HTML")
+            try:
+                await context.bot.send_message(chat_id=target_user_id, text="❌ आपका पेमेंट अप्रूव हो गया है, लेकिन स्टॉक खत्म हो गया है। कृपया एडमिन से संपर्क करें।")
+            except:
+                pass
+
+    # जब एडमिन 'Reject' बटन दबाए
+    elif data.startswith("admin_reject_"):
+        if user_id != ADMIN_ID:
+            await query.answer("You are not authorized!", show_alert=True)
+            return
+        
+        parts = data.split("_")
+        target_user_id = int(parts[2])
+
+        # यूजर को मैसेज भेजना कि रिजेक्ट हो गया
+        try:
+            await context.bot.send_message(
+                chat_id=target_user_id, 
+                text="❌ <b>पेमेंट रिजेक्ट कर दिया गया है!</b>\n\nआपका पेमेंट स्क्रीनशॉट गलत है या वेरीफाई नहीं हुआ है। अगर कोई गलती है तो एडमिन से संपर्क करें।", 
+                parse_mode="HTML"
+            )
+        except:
+            pass
+
+        await query.edit_message_caption(caption=f"❌ <b>Rejected!</b>\nUser {target_user_id} को रिजेक्ट मैसेज भेज दिया गया है।", parse_mode="HTML")
+
+async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
+    msg = " ".join(context.args)
+    if not msg:
+        await update.message.reply_text("उपयोग: /broadcast <मैसेज>")
+        return
+    count = 0
+    for uid in USERS:
+        try:
+            await context.bot.send_message(uid, msg, parse_mode="HTML")
+            count += 1
+        except:
+            pass
+    await update.message.reply_text(f"✅ {count} यूजर्स को मैसेज भेज दिया गया।")
+
+def main():
+    app = Application.builder().token(BOT_TOKEN).post_init(set_commands).build()
+    
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("buy", lambda u, c: show_product_menu(u)))
+    app.add_handler(CommandHandler("mykeys", lambda u, c: show_my_keys(u, u.effective_user.id)))
+    app.add_handler(CommandHandler("reset", lambda u, c: u.message.reply_text(f"🔄 <b>Key Reset:</b> एडमिन से संपर्क करें: {ADMIN_USERNAME}", parse_mode="HTML")))
+    app.add_handler(CommandHandler("support", lambda u, c: u.message.reply_text(f"📞 <b>Support:</b> एडमिन से संपर्क करें:\n{ADMIN_USERNAME}", parse_mode="HTML")))
+    app.add_handler(CommandHandler("status", lambda u, c: u.message.reply_text("🟢 <b>Server Status:</b> All Hacks are 100% Safe & Working!", parse_mode="HTML")))
+    app.add_handler(CommandHandler("broadcast", broadcast))
+    
+    # फोटो हैंडलर जोड़ा गया
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    app.add_handler(CallbackQueryHandler(button))
+    
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
+    

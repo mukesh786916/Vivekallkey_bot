@@ -1,7 +1,7 @@
 import os
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, BotCommand
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
 # Render के लिए पोर्ट स्कैन फ़िक्स (Dummy Server)
@@ -18,12 +18,13 @@ def run_dummy_server():
 
 threading.Thread(target=run_dummy_server, daemon=True).start()
 
+# आपकी बॉट डिटेल्स
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-ADMIN_ID = 1187949807 # ⚠️ यहाँ अपनी असली टेलीग्राम न्यूमेरिक ID डालें
-ADMIN_USERNAME = "@Loaded_VIVEKR"  # यहाँ आपका अपना टेलीग्राम यूजरनेम डाल दिया है
-# डेटाबेस (मेमोरी में स्टोरेज)
+ADMIN_ID = 1187949807
+ADMIN_USERNAME = "@Loaded_VIVEKR"
+
 USERS = set()
-USER_KEYS = {}  # {user_id: [purchased_keys]}
+USER_KEYS = {}
 
 KEYS = {
     "1_day": ["KEY-1DAY-ABC1234", "KEY-1DAY-XYZ5678"],
@@ -33,7 +34,6 @@ KEYS = {
 PRICES = {"1_day": "₹200", "7_days": "₹700"}
 UPI_ID = "vivektg700@ybl"
 
-# नीचे दिखने वाला मुख्य कीबोर्ड (Reply Keyboard)
 MAIN_KEYBOARD = ReplyKeyboardMarkup(
     [
         ["🛍 Buy Licence", "🔑 My Licences"],
@@ -42,10 +42,21 @@ MAIN_KEYBOARD = ReplyKeyboardMarkup(
     resize_keyboard=True
 )
 
+# ब्लूटूथ/ब्लू मेन्यू (Bot Commands Menu) सेट करने का फ़ंक्शन
+async def set_commands(application: Application):
+    commands = [
+        BotCommand("start", "Open bot menu"),
+        BotCommand("buy", "Buy licence"),
+        BotCommand("mykeys", "Show my purchased keys"),
+        BotCommand("reset", "Reset licence"),
+        BotCommand("support", "Get support contact"),
+        BotCommand("status", "Check server status")
+    ]
+    await application.bot.set_my_commands(commands)
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     USERS.add(user_id)
-    
     welcome_text = "👋 <b>Welcome to BGMI Key Store!</b>\n\nनीचे दिए गए मेन्यू बटन का उपयोग करें:"
     await update.message.reply_text(welcome_text, reply_markup=MAIN_KEYBOARD, parse_mode="HTML")
 
@@ -60,6 +71,14 @@ async def show_buy_menu(update: Update):
     else:
         await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
+async def show_my_keys(update: Update, user_id: int):
+    keys = USER_KEYS.get(user_id, [])
+    if keys:
+        key_list = "\n".join([f"• <code>{k}</code>" for k in keys])
+        await update.message.reply_text(f"🔑 <b>आपकी खरीदे गए Keys:</b>\n\n{key_list}", parse_mode="HTML")
+    else:
+        await update.message.reply_text("❌ आपने अभी तक कोई Key नहीं खरीदी है।")
+
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     user_id = update.effective_user.id
@@ -68,16 +87,11 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text == "🛍 Buy Licence":
         await show_buy_menu(update)
     elif text == "🔑 My Licences":
-        keys = USER_KEYS.get(user_id, [])
-        if keys:
-            key_list = "\n".join([f"• <code>{k}</code>" for k in keys])
-            await update.message.reply_text(f"🔑 <b>आपकी खरीदे गए Keys:</b>\n\n{key_list}", parse_mode="HTML")
-        else:
-            await update.message.reply_text("❌ आपने अभी तक कोई Key नहीं खरीदी है।")
+        await show_my_keys(update, user_id)
     elif text == "🔄 Reset Licence":
-        await update.message.reply_text("🔄 <b>Key Reset:</b> अगर आपकी Key डिवाइस से अनलॉक करनी है तो एडमिन से संपर्क करें।", parse_mode="HTML")
+        await update.message.reply_text(f"🔄 <b>Key Reset:</b> अगर आपकी Key डिवाइस से अनलॉक करनी है तो एडमिन से संपर्क करें: {ADMIN_USERNAME}", parse_mode="HTML")
     elif text == "📞 Support":
-        await update.message.reply_text("📞 <b>Support:</b> सहायता के लिए एडमिन से संपर्क करें: @your_admin_username", parse_mode="HTML")
+        await update.message.reply_text(f"📞 <b>Support:</b> सहायता के लिए एडमिन से संपर्क करें:\n{ADMIN_USERNAME}", parse_mode="HTML")
     elif text == "🌟 Status":
         await update.message.reply_text("🟢 <b>Server Status:</b> BGMI Hack is 100% Safe & Working!", parse_mode="HTML")
 
@@ -89,7 +103,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data.startswith("buy_"):
         plan = query.data.replace("buy_", "")
         plan_name = "1 Day" if plan == "1_day" else "7 Days"
-        
         text = (
             f"🛒 <b>प्लान:</b> {plan_name}\n"
             f"💰 <b>कीमत:</b> {PRICES[plan]}\n"
@@ -108,9 +121,9 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             USER_KEYS[user_id].append(key)
             await query.edit_message_text(f"🎉 <b>आपकी Key:</b> <code>{key}</code>\n\n(यह Key आपके 'My Licences' सेक्शन में भी सेव हो गई है)", parse_mode="HTML")
         else:
-            await query.edit_message_text("❌ स्टॉक खत्म हो गया है! कृपया एडमिन से संपर्क करें।")
+            await query.edit_message_text(f"❌ स्टॉक खत्म हो गया है! कृपया एडमिन से संपर्क करें: {ADMIN_USERNAME}")
 
-# Broadcast फीचर (एडमिन /broadcast <मैसेज> लिखकर सभी को भेज सकता है)
+# ब्रॉडकास्ट कमांड
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
@@ -128,11 +141,19 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ {count} यूजर्स को मैसेज भेज दिया गया।")
 
 def main():
-    app = Application.builder().token(BOT_TOKEN).build()
+    app = Application.builder().token(BOT_TOKEN).post_init(set_commands).build()
+    
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("buy", lambda u, c: show_buy_menu(u)))
+    app.add_handler(CommandHandler("mykeys", lambda u, c: show_my_keys(u, u.effective_user.id)))
+    app.add_handler(CommandHandler("reset", lambda u, c: u.message.reply_text(f"🔄 <b>Key Reset:</b> एडमिन से संपर्क करें: {ADMIN_USERNAME}", parse_mode="HTML")))
+    app.add_handler(CommandHandler("support", lambda u, c: u.message.reply_text(f"📞 <b>Support:</b> एडमिन से संपर्क करें:\n{ADMIN_USERNAME}", parse_mode="HTML")))
+    app.add_handler(CommandHandler("status", lambda u, c: u.message.reply_text("🟢 <b>Server Status:</b> BGMI Hack is 100% Safe & Working!", parse_mode="HTML")))
     app.add_handler(CommandHandler("broadcast", broadcast))
+    
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     app.add_handler(CallbackQueryHandler(button))
+    
     app.run_polling()
 
 if __name__ == "__main__":

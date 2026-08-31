@@ -20,7 +20,7 @@ threading.Thread(target=run_dummy_server, daemon=True).start()
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 ADMIN_ID = 1187949807 # ⚠️ यहाँ अपनी असली टेलीग्राम न्यूमेरिक ID डालें
-
+ADMIN_USERNAME = "@Loaded_VIVEKR"  # यहाँ आपका अपना टेलीग्राम यूजरनेम डाल दिया है
 # डेटाबेस (मेमोरी में स्टोरेज)
 USERS = set()
 USER_KEYS = {}  # {user_id: [purchased_keys]}
